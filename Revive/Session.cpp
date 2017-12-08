@@ -5,10 +5,13 @@
 #include "SettingsManager.h"
 #include "Settings.h"
 
+#define SESSION_RELOAD_EVENT_NAME L"ReviveReloadSettings"
+
 void SessionThreadFunc(ovrSession session)
 {
 	std::chrono::microseconds freq(std::chrono::milliseconds(10));
 	DWORD procId = GetCurrentProcessId();
+	HANDLE reload = OpenEventW(SYNCHRONIZE, FALSE, SESSION_RELOAD_EVENT_NAME);
 
 	while (session->Running)
 	{
@@ -78,6 +81,12 @@ void SessionThreadFunc(ovrSession session)
 			OutputDebugStringA(vr::VRSystem()->GetEventTypeNameFromEnum((vr::EVREventType)vrEvent.eventType));
 			OutputDebugStringA("\n");
 #endif
+		}
+
+		if (reload && WaitForSingleObject(reload, 0) == WAIT_OBJECT_0)
+		{
+			session->Settings->ReloadSettings();
+			session->Input->LoadInputScript(session->Settings->InputScript.c_str());
 		}
 
 		std::this_thread::sleep_for(freq);
